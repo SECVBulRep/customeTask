@@ -1,17 +1,32 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 
 AsyncLocal<int> myValue = new();
 
+List<MyTask> tasks = new();
+
 for (int i = 0; i < 100; i++)
 {
     myValue.Value = i;
-    MyThreadPool.QueueUserWorkItem(delegate
+    
+    tasks.Add(MyTask.Run(delegate
     {
         Console.WriteLine(myValue.Value);
         Thread.Sleep(1000);
-    });
+    }));
+    
+    // MyThreadPool.QueueUserWorkItem(delegate
+    // {
+    //     Console.WriteLine(myValue.Value);
+    //     Thread.Sleep(1000);
+    // });
+}
+
+foreach (var myTask in tasks)
+{
+    myTask.Wait();
 }
 
 
@@ -21,16 +36,28 @@ Console.WriteLine("-- end --." +
 Console.ReadKey();
 
 /// <summary>
-/// Реализация меоге таска. ТАск это всего лишь  структра данных которая храниться в памяти и содержит некторую инфу.
+/// Реализация меоге таска. ТАск это всего лишь  структура данных которая храниться в памяти и содержит некторую инфу.
 /// </summary>
 class MyTask
 {
+    private bool _isCompleted;
+    private Exception? _exception;
+    private Action? _continuation;
+    private ExecutionContext? _executionContext;
+
     /// <summary>
     /// Проверка завершился ли мой таск 
     /// </summary>
     public bool IsCompleted
     {
-        get { }
+        get
+        {
+            // плохо блокировать весь объекь. В общем случае лучше так не делать.  А бликровать через какую то переменнную.
+            lock (this)
+            {
+                return _isCompleted;
+            }
+        }
     }
 
     /// <summary>
@@ -38,22 +65,45 @@ class MyTask
     /// </summary>
     public void SetResult()
     {
+        Complete(null);
     }
 
     /// <summary>
     /// метод что бы поменить таск как Failed
     /// </summary>
     /// <param name="exception"></param>
-    public void SetFailed(Exception exception)
+    public void SetExceptio(Exception exception)
     {
+        Complete(exception);
     }
 
-    /// <summary>
-    /// методы что бы подождать пока он не выполниться 
-    /// </summary>
-    public void Wait()
+    private void Complete(Exception? exception)
     {
+        lock (this)
+        {
+            if (_isCompleted) throw new InvalidOperationException("пнх");
+
+            _isCompleted = true;
+
+            _exception = exception;
+
+            if (_continuation is not null)
+            {
+                MyThreadPool.QueueUserWorkItem(delegate
+                {
+                    if (_executionContext is null)
+                    {
+                        _continuation();
+                    }
+                    else
+                    {
+                        ExecutionContext.Run(_executionContext, state => ((Action)state!).Invoke(), _continuation);
+                    }
+                });
+            }
+        }
     }
+
 
     /// <summary>
     /// или задать  метод котоырм я продолжу его выполнение 
@@ -61,6 +111,66 @@ class MyTask
     /// <param name="action"></param>
     public void ContinueWith(Action action)
     {
+        lock (this)
+        {
+            if (_isCompleted)
+            {
+                MyThreadPool.QueueUserWorkItem(action);
+            }
+            else
+            {
+                _continuation = action;
+                _executionContext = ExecutionContext.Capture();
+            }
+        }
+    }
+
+    /// <summary>
+    /// методы что бы подождать пока он не выполниться 
+    /// </summary>
+    public void Wait()
+    {
+        ManualResetEventSlim? mres = null;
+
+        lock (this)
+        {
+            if (!_isCompleted)
+            {
+                mres = new ManualResetEventSlim();
+                ContinueWith(mres.Set);
+            }
+        }
+
+        mres?.Wait();
+
+        if (_exception is not null)
+        {
+            //не делаем  просто  throw  потому что мы просто передаем уже существующий exception ,  но при этом мы не потеряем  трейс 
+            //throw new Exception("", _exception);  раскажи про такой способ  отправки экспешена с сохранением трассировки
+            //throw new AggregateException(_exception); //  но скажи что вот такой спосбо тоже будет рабаотьт
+            ExceptionDispatchInfo.Throw(_exception); // но самый пацанский способ этот
+        }
+    }
+
+    public static MyTask Run(Action action)
+    {
+        MyTask task = new();
+
+        MyThreadPool.QueueUserWorkItem(() =>
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+               task.SetExceptio(e);
+               return;
+            }
+            task.SetResult();
+        });
+        
+        return task;
     }
 }
 
