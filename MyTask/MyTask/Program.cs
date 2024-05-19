@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 
 AsyncLocal<int> myValue = new();
@@ -22,11 +23,11 @@ Console.ReadKey();
 
 static class MyThreadPool
 {
-    private static readonly BlockingCollection<Action> s_workItems = new();
+    private static readonly BlockingCollection<(Action, ExecutionContext?)> s_workItems = new();
 
     public static void QueueUserWorkItem(Action action)
     {
-        s_workItems.Add(action);
+        s_workItems.Add((action, ExecutionContext.Capture()));
     }
 
     static MyThreadPool()
@@ -37,8 +38,19 @@ static class MyThreadPool
             {
                 while (true)
                 {
-                    var action = s_workItems.Take();
-                    action();
+                    var (action, context) = s_workItems.Take();
+
+                    if (context is null)
+                    {
+                        action();
+                    }
+                    else
+                    {
+                        //ExecutionContext.Run(context, delegate { action();},null);
+                        // так эффективнее , потому что выше это рабоатет через замыкание, а для того что бы все это поддержваить компилятор
+                        // несколько дополнительных переменных
+                        ExecutionContext.Run(context, state => ((Action)state!).Invoke(), action);
+                    }
                 }
             })
             {
