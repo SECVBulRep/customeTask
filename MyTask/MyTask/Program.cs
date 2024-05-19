@@ -20,6 +20,50 @@ Console.WriteLine("-- end --." +
 
 Console.ReadKey();
 
+/// <summary>
+/// Реализация меоге таска. ТАск это всего лишь  структра данных которая храниться в памяти и содержит некторую инфу.
+/// </summary>
+class MyTask
+{
+    /// <summary>
+    /// Проверка завершился ли мой таск 
+    /// </summary>
+    public bool IsCompleted
+    {
+        get { }
+    }
+
+    /// <summary>
+    /// Мну нужно так метод которым я помечу что мой  таск выполнен
+    /// </summary>
+    public void SetResult()
+    {
+    }
+
+    /// <summary>
+    /// метод что бы поменить таск как Failed
+    /// </summary>
+    /// <param name="exception"></param>
+    public void SetFailed(Exception exception)
+    {
+    }
+
+    /// <summary>
+    /// методы что бы подождать пока он не выполниться 
+    /// </summary>
+    public void Wait()
+    {
+    }
+
+    /// <summary>
+    /// или задать  метод котоырм я продолжу его выполнение 
+    /// </summary>
+    /// <param name="action"></param>
+    public void ContinueWith(Action action)
+    {
+    }
+}
+
 
 static class MyThreadPool
 {
