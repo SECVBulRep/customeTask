@@ -3,39 +3,48 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 
 
-AsyncLocal<int> myValue = new();
+Console.WriteLine("Hello, ");
 
-List<MyTask> tasks = new();
-
-for (int i = 0; i < 100; i++)
+MyTask.Delay(1000).ContinueWith(delegate
 {
-    myValue.Value = i;
+    Console.WriteLine("Bulat");
+});
 
-    tasks.Add(MyTask.Run(delegate
-    {
-        Console.WriteLine(myValue.Value);
-        Thread.Sleep(1000);
-    }));
 
-    // MyThreadPool.QueueUserWorkItem(delegate
-    // {
-    //     Console.WriteLine(myValue.Value);
-    //     Thread.Sleep(1000);
-    // });
-}
-
-// foreach (var myTask in tasks)
+Console.ReadLine();
+// AsyncLocal<int> myValue = new();
+//
+// List<MyTask> tasks = new();
+//
+// for (int i = 0; i < 100; i++)
 // {
-//     myTask.Wait();
+//     myValue.Value = i;
+//
+//     tasks.Add(MyTask.Run(delegate
+//     {
+//         Console.WriteLine(myValue.Value);
+//         Thread.Sleep(1000);
+//     }));
+//
+//     // MyThreadPool.QueueUserWorkItem(delegate
+//     // {
+//     //     Console.WriteLine(myValue.Value);
+//     //     Thread.Sleep(1000);
+//     // });
 // }
-
-MyTask.WhenAll(tasks).Wait();
-
-
-Console.WriteLine("-- end --." +
-                  "press any key ...");
-
-Console.ReadKey();
+//
+// // foreach (var myTask in tasks)
+// // {
+// //     myTask.Wait();
+// // }
+//
+// MyTask.WhenAll(tasks).Wait();
+//
+//
+// Console.WriteLine("-- end --." +
+//                   "press any key ...");
+//
+// Console.ReadKey();
 
 /// <summary>
 /// Реализация меоге таска. ТАск это всего лишь  структура данных которая храниться в памяти и содержит некторую инфу.
@@ -199,8 +208,17 @@ class MyTask
                 myTask.ContinueWith(continuation);
             }
         }
+        return t;
+    }
 
 
+    public static MyTask Delay(int timeout)
+    {
+        MyTask t = new MyTask();
+
+        new Timer(_ => t.SetResult()).Change(timeout, -1);
+
+        // почему  же тут не написать просто Thread.Sleep().  Потому что мы выкючаем целый Thread из нашего  ThreadPool,  при этом у нас полно работы!!!
         return t;
     }
 }
