@@ -8,10 +8,10 @@ Console.WriteLine("Hello, ");
 MyTask.Delay(1000).ContinueWith(delegate
 {
     Console.WriteLine("Bulat");
-});
+}).Wait();
 
 
-Console.ReadLine();
+//Console.ReadLine();
 // AsyncLocal<int> myValue = new();
 //
 // List<MyTask> tasks = new();
@@ -120,20 +120,42 @@ class MyTask
     /// или задать  метод котоырм я продолжу его выполнение 
     /// </summary>
     /// <param name="action"></param>
-    public void ContinueWith(Action action)
+    public MyTask ContinueWith(Action action)
     {
+
+        MyTask t = new();
+
+        Action callback = () =>
+        {
+
+            try
+            {   
+                action();
+            }
+            catch (Exception e)
+            {
+                t.SetExceptio(e);
+                return;
+            }
+            
+            t.SetResult();
+        };
+
+
         lock (this)
         {
             if (_isCompleted)
             {
-                MyThreadPool.QueueUserWorkItem(action);
+                MyThreadPool.QueueUserWorkItem(callback);
             }
             else
             {
-                _continuation = action;
+                _continuation = callback;
                 _executionContext = ExecutionContext.Capture();
             }
         }
+
+        return t;
     }
 
     /// <summary>
@@ -257,7 +279,7 @@ static class MyThreadPool
                 }
             })
             {
-                IsBackground = false
+                IsBackground = true
             }.Start();
         }
     }
