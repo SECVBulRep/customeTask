@@ -10,13 +10,13 @@ List<MyTask> tasks = new();
 for (int i = 0; i < 100; i++)
 {
     myValue.Value = i;
-    
+
     tasks.Add(MyTask.Run(delegate
     {
         Console.WriteLine(myValue.Value);
         Thread.Sleep(1000);
     }));
-    
+
     // MyThreadPool.QueueUserWorkItem(delegate
     // {
     //     Console.WriteLine(myValue.Value);
@@ -24,10 +24,12 @@ for (int i = 0; i < 100; i++)
     // });
 }
 
-foreach (var myTask in tasks)
-{
-    myTask.Wait();
-}
+// foreach (var myTask in tasks)
+// {
+//     myTask.Wait();
+// }
+
+MyTask.WhenAll(tasks).Wait();
 
 
 Console.WriteLine("-- end --." +
@@ -164,13 +166,42 @@ class MyTask
             }
             catch (Exception e)
             {
-               task.SetExceptio(e);
-               return;
+                task.SetExceptio(e);
+                return;
             }
+
             task.SetResult();
         });
-        
+
         return task;
+    }
+
+    public static MyTask WhenAll(List<MyTask> tasks)
+    {
+        MyTask t = new MyTask();
+
+        if (tasks.Count == 0)
+            t.SetResult();
+        else
+        {
+            int remaning = tasks.Count;
+
+            Action continuation = () =>
+            {
+                if (Interlocked.Decrement(ref remaning) == 0)
+                {
+                    t.SetResult();
+                }
+            };
+
+            foreach (var myTask in tasks)
+            {
+                myTask.ContinueWith(continuation);
+            }
+        }
+
+
+        return t;
     }
 }
 
