@@ -3,21 +3,21 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 
 
-Console.WriteLine("Hello, ");
 
+MyTask.Iterate(PrintAsync()).Wait();
 
-foreach (var i in Count(10))
+static IEnumerable<MyTask> PrintAsync()
 {
-    Console.WriteLine(i);
-}
-
-IEnumerable<int> Count(int count)
-{
-    for (int i = 0;i<count ; i++)
+    for (int i = 0;; i++)
     {
-        yield return i;
+        yield return MyTask.Delay(1000);
+        Console.WriteLine(i);
     }
 }
+
+
+
+
 
 
 // MyTask.Delay(1000).ContinueWith(delegate
@@ -320,6 +320,39 @@ class MyTask
         new Timer(_ => t.SetResult()).Change(timeout, -1);
 
         // почему  же тут не написать просто Thread.Sleep().  Потому что мы выкючаем целый Thread из нашего  ThreadPool,  при этом у нас полно работы!!!
+        return t;
+    }
+
+    public static MyTask Iterate(IEnumerable<MyTask> tasks)
+    {
+        MyTask t = new();
+
+
+        IEnumerator<MyTask> e = tasks.GetEnumerator();
+        void MoveNext()
+        {
+
+            try
+            {
+                if (e.MoveNext())
+                {
+
+                    MyTask next = e.Current;
+                    next.ContinueWith(MoveNext);
+                    return;
+                }
+            }
+            catch (Exception exception)
+            {
+                t.SetExceptio(exception);
+                return;
+            }
+            
+            t.SetResult();
+        }
+        
+        MoveNext();
+
         return t;
     }
 }
