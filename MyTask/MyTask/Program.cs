@@ -8,6 +8,17 @@ Console.WriteLine("Hello, ");
 MyTask.Delay(1000).ContinueWith(delegate
 {
     Console.WriteLine("Bulat");
+
+    return MyTask.Delay(1000).ContinueWith(delegate
+    {
+        Console.WriteLine(" and Vasya");
+
+        return MyTask.Delay(1000).ContinueWith(delegate
+        {
+            Console.WriteLine(" and Pasha");
+        });
+    });
+    
 }).Wait();
 
 
@@ -157,6 +168,59 @@ class MyTask
 
         return t;
     }
+    
+    
+    
+    /// <summary>
+    /// другая версия ContinueWith. 
+    /// </summary>
+    /// <param name="action"></param>
+    public MyTask ContinueWith(Func<MyTask> action)
+    {
+        MyTask t = new();
+
+        Action callback = () =>
+        {
+
+            try
+            {   
+               MyTask next =  action();
+               next.ContinueWith(delegate
+               {
+                   if (next._exception is not null)
+                   {
+                       t.SetExceptio(next._exception);
+                   }
+                   else
+                   {
+                       t.SetResult();
+                   }
+               });
+            }
+            catch (Exception e)
+            {
+                t.SetExceptio(e);
+                return;
+            }
+           // t.SetResult();
+        };
+        
+        lock (this)
+        {
+            if (_isCompleted)
+            {
+                MyThreadPool.QueueUserWorkItem(callback);
+            }
+            else
+            {
+                _continuation = callback;
+                _executionContext = ExecutionContext.Capture();
+            }
+        }
+
+        return t;
+    }
+    
 
     /// <summary>
     /// методы что бы подождать пока он не выполниться 
