@@ -3,19 +3,26 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 
 
+//await MyTask.Delay(2000);
 
-MyTask.Iterate(PrintAsync()).Wait();
+// await MyTask.Run(delegate
+// {
+//     
+//     Console.WriteLine("sdfsdfsdf");
+// });
 
-static IEnumerable<MyTask> PrintAsync()
+
+await Test();
+
+MyTask Test()
 {
-    for (int i = 0;; i++)
+    return MyTask.Run(() =>
     {
-        yield return MyTask.Delay(1000);
-        Console.WriteLine(i);
-    }
+        Console.WriteLine("Task is running...");
+        Thread.Sleep(2000); // Имитация длительной операции
+        Console.WriteLine("Task completed.");
+    });
 }
-
-
 
 
 
@@ -82,6 +89,20 @@ class MyTask
     private Action? _continuation;
     private ExecutionContext? _executionContext;
 
+
+    public  struct  Awaiter(MyTask t) : INotifyCompletion
+    {
+        public Awaiter GetAwaiter() => this;
+        public bool IsCompleted => t._isCompleted;
+
+        public void OnCompleted(Action continuation) => t.ContinueWith(continuation);
+
+        public void GetResult() => t.Wait();
+
+    }
+
+    public Awaiter GetAwaiter() => new(this);
+    
     /// <summary>
     /// Проверка завершился ли мой таск 
     /// </summary>
