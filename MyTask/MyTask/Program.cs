@@ -5,21 +5,36 @@ using System.Runtime.ExceptionServices;
 
 Console.WriteLine("Hello, ");
 
-MyTask.Delay(1000).ContinueWith(delegate
+
+foreach (var i in Count(10))
 {
-    Console.WriteLine("Bulat");
+    Console.WriteLine(i);
+}
 
-    return MyTask.Delay(1000).ContinueWith(delegate
+IEnumerable<int> Count(int count)
+{
+    for (int i = 0;i<count ; i++)
     {
-        Console.WriteLine(" and Vasya");
+        yield return i;
+    }
+}
 
-        return MyTask.Delay(1000).ContinueWith(delegate
-        {
-            Console.WriteLine(" and Pasha");
-        });
-    });
-    
-}).Wait();
+
+// MyTask.Delay(1000).ContinueWith(delegate
+// {
+//     Console.WriteLine("Bulat");
+//
+//     return MyTask.Delay(1000).ContinueWith(delegate
+//     {
+//         Console.WriteLine(" and Vasya");
+//
+//         return MyTask.Delay(1000).ContinueWith(delegate
+//         {
+//             Console.WriteLine(" and Pasha");
+//         });
+//     });
+//     
+// }).Wait();
 
 
 //Console.ReadLine();
